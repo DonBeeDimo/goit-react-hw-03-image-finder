@@ -1,14 +1,24 @@
 import React, { Component } from 'react';
-import ImageGalleryItem from '../ImageGalleryItem/';
+import PropTypes from 'prop-types';
 import s from './ImageGallery.module.css';
+import ImageGalleryItem from '../ImageGalleryItem/';
 import ImageError from '../ImageError';
-// import ImageGalleryItem from '../ImageGalleryItem';
-// import imageAPI from '../../services/image-api';
+import Loader from '../Loader';
+import pixabayAPI from '../../services/Pixabay-api';
+import Modal from '../Modal';
+import Button from '../Button';
 
 export default class ImageGallery extends Component {
+  static propTypes = {
+    imageName: PropTypes.string,
+  };
+
   state = {
     images: null,
+    page: 1,
     error: null,
+    showModal: false,
+    modalImgProps: { url: '', alt: '' },
     status: 'idle',
   };
 
@@ -17,35 +27,77 @@ export default class ImageGallery extends Component {
     const nextName = this.props.imageName;
 
     if (prevName !== nextName) {
+      this.reset();
       this.setState({ status: 'pending' });
-
-      fetch(
-        `https://pixabay.com/api/?q=${nextName}&page=1&key=22062260-6c25df741ce11e2802dec385a&image_type=photo&orientation=horizontal&per_page=12`,
-      )
-        .then(response => {
-          if (response.ok) {
-            return response.json();
-          }
-
-          return Promise.reject(
-            new Error(`Изображение ${nextName} отсутствует`),
-          );
-        })
-        .then(images => this.setState({ images, status: 'resolved' }))
-        .catch(error => this.setState({ error, status: 'rejected' }));
+      this.fetchQuery(nextName);
     }
   }
 
+  fetchQuery = nextName => {
+    const { page } = this.state;
+    pixabayAPI
+      .fetchImage(nextName, page)
+      .then(({ hits }) => {
+        if (hits.length === 0) {
+          return Promise.reject(
+            new Error(`Изображение с именем - ${nextName} - отсутствует`),
+          );
+        }
+
+        this.setState(prevState => ({
+          images: [...prevState.images, ...hits],
+          status: 'resolved',
+        }));
+      })
+      .catch(error => this.setState({ error, status: 'rejected' }));
+  };
+
+  incrementPage = () => {
+    this.setState(prevState => ({ page: prevState.page + 1 }));
+  };
+
+  scrollDown = () => {
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        left: 0,
+        behavior: 'smooth',
+      });
+    }, 1000);
+  };
+
+  handleLoadBtnClick = () => {
+    const nextQuery = this.props.imageName;
+    this.incrementPage();
+    this.fetchQuery(nextQuery);
+    this.scrollDown();
+  };
+
+  reset = () => {
+    this.setState({ page: 1, images: [] });
+  };
+
+  toggleModal = () => {
+    this.setState(({ showModal }) => ({
+      showModal: !showModal,
+    }));
+  };
+
+  handleImgClick = props => {
+    this.setState({ modalImgProps: props });
+    this.toggleModal();
+  };
+
   render() {
-    const { images, error, status } = this.state;
-    // const { imageName } = this.props;
+    const { images, error, showModal, status } = this.state;
+    const { url, alt } = this.state.modalImgProps;
 
     if (status === 'idle') {
       return <div>Введите название изображения</div>;
     }
 
     if (status === 'pending') {
-      return <div>Загружаем...</div>;
+      return <Loader />;
     }
 
     if (status === 'rejected') {
@@ -55,81 +107,25 @@ export default class ImageGallery extends Component {
     if (status === 'resolved') {
       return (
         <div>
+          {showModal && (
+            <Modal onClose={this.toggleModal}>
+              <img src={url} alt={alt} className={s.modalImage} />
+            </Modal>
+          )}
           <ul className={s.ImageGallery}>
-            {images &&
-              images.hits.map(({ id, webformatURL, tags, largeImageURL }) => (
-                <ImageGalleryItem
-                  key={id}
-                  src={webformatURL}
-                  url={largeImageURL}
-                  alt={tags}
-                />
-              ))}
+            {images.map(({ id, webformatURL, tags, largeImageURL }) => (
+              <ImageGalleryItem
+                key={id}
+                src={webformatURL}
+                url={largeImageURL}
+                alt={tags}
+                openModal={this.handleImgClick}
+              />
+            ))}
           </ul>
+          <Button handleLoadMore={this.handleLoadBtnClick} />
         </div>
       );
     }
-
-    // return (
-    //   <div>
-    //     {error && <h1>{error.message}</h1>}
-    //     {loading && <div>Загружаем...</div>}
-    //     {!imageName && <div>Введите название изображения</div>}
-
-    //     <ul className={s.ImageGallery}>
-    //       {images &&
-    //         images.hits.map(({ id, webformatURL, tags, largeImageURL }) => (
-    //           <ImageGalleryItem
-    //             key={id}
-    //             src={webformatURL}
-    //             url={largeImageURL}
-    //             alt={tags}
-    //           />
-    //         ))}
-    //     </ul>
-    //   </div>
-    // );
   }
 }
-
-// export default class ImageFetch extends Component {
-//   state = {
-//     images: null,
-//     error: null,
-//     status: 'idle',
-//   };
-
-//   componentDidUpdate(prevProps, prevState) {
-//     const prevName = prevProps.imageName;
-//     const nextName = this.props.imageName;
-
-//     if (prevName !== nextName) {
-//       this.setState({ status: 'pending' });
-
-//       imageAPI
-//         .fetchImage(nextName)
-//         .than(images => this.setState({ images, status: 'resolved' }))
-//         .catch(error => this.setState({ error, status: 'rejected' }));
-//     }
-//   }
-
-//   render() {
-//     const { images, error, status } = this.state;
-
-//     if (status === 'idle') {
-//       return <div>Введите название изображения</div>;
-//     }
-
-//     if (status === 'pending') {
-//       return <div>Загружаем...</div>;
-//     }
-
-//     if (status === 'rejected') {
-//       return <ImageError message={error.message} />;
-//     }
-
-//     if (status === 'resolved') {
-//       return <ImageGalleryItem images={images} />;
-//     }
-//   }
-// }

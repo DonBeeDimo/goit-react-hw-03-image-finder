@@ -6,7 +6,8 @@ import s from './ImageError.module.css';
 export default function ImageError({ message }) {
   return (
     <div className={s.error} role="alert">
-      <p>{message}</p> <img src={errorImg} alt="empty" />
+      <p className={s.errorText}>{message}</p>{' '}
+      <img src={errorImg} alt="empty" />
     </div>
   );
 }
