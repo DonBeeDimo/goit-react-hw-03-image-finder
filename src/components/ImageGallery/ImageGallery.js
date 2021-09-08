@@ -46,14 +46,11 @@ export default class ImageGallery extends Component {
 
         this.setState(prevState => ({
           images: [...prevState.images, ...hits],
+          page: prevState.page + 1,
           status: 'resolved',
         }));
       })
       .catch(error => this.setState({ error, status: 'rejected' }));
-  };
-
-  incrementPage = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
   };
 
   scrollDown = () => {
@@ -68,7 +65,6 @@ export default class ImageGallery extends Component {
 
   handleLoadBtnClick = () => {
     const nextQuery = this.props.imageName;
-    this.incrementPage();
     this.fetchQuery(nextQuery);
     this.scrollDown();
   };
